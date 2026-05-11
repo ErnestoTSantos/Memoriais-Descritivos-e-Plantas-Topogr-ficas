@@ -1,0 +1,14 @@
+flowchart LR
+    U[Usuario Tecnico] --> UC1[Importar arquivo CSV/TXT/SHP]
+    U --> UC2[Inserir dados do imovel]
+    U --> UC3[Processar coordenadas]
+    U --> UC4[Visualizar poligono e metricas]
+    U --> UC5[Exportar PDF/DOCX]
+    U --> UC6[Exportar DXF/DWG]
+    U --> UC7[Consultar historico]
+
+    UC3 --> S1[Validar entradas]
+    UC3 --> S2[Fechar poligono]
+    UC3 --> S3[Calcular area/perimetro/rumos]
+    UC3 --> S4[Gerar memorial]
+    UC6 --> S5[Gerar planta CAD]

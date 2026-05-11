@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GeoMemorial</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+
+<body>
+<main class="container">
+
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Plataforma Técnica</p>
+      <h1>GeoMemorial</h1>
+      <p class="hero-copy">Gere memorial descritivo e planta técnica com consistência profissional.</p>
+    </div>
+  </header>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Dados do imóvel</h2>
+    </div>
+
+    <form id="process-form">
+
+      <fieldset>
+        <legend>Informações cadastrais</legend>
+
+        <div class="grid">
+
+          <label>Imóvel
+            <input name="property_name" />
+          </label>
+
+          <label>Proprietário
+            <input name="owner_name" />
+          </label>
+
+          <label>Município
+            <input name="municipality" />
+          </label>
+
+          <label>UF
+            <input name="state" maxlength="2" />
+          </label>
+
+          <label>Datum
+            <input name="datum" />
+          </label>
+
+          <label>Sistema
+            <input name="coordinate_system" />
+          </label>
+
+          <label>Modalidade
+            <select name="measurement_mode" id="measurement-mode">
+              <option value="ponto_a_ponto">Ponto a ponto</option>
+              <option value="irradiacao">Irradiação</option>
+            </select>
+          </label>
+
+          <label class="irradiation-only hidden">
+            Estação X
+            <input name="irradiation_origin_x" type="number" step="any" inputmode="decimal" />
+          </label>
+
+          <label class="irradiation-only hidden">
+            Estação Y
+            <input name="irradiation_origin_y" type="number" step="any" inputmode="decimal" />
+          </label>
+
+          <label>
+            Tolerância de fechamento (m)
+            <input name="closure_tolerance_m" type="number" step="any" inputmode="decimal" />
+          </label>
+
+          <label>
+            Erro angular (s)
+            <input name="irradiation_angle_error_seconds" type="number" step="any" inputmode="decimal" />
+          </label>
+
+          <label>
+            Limite erro angular (s)
+            <input name="angle_error_limit_seconds" type="number" step="any" inputmode="decimal" />
+          </label>
+
+        </div>
+
+        <div class="irradiation-only hidden">
+          <label>
+            Estações (opcional)
+            <textarea name="stations_text" rows="3"></textarea>
+          </label>
+        </div>
+
+      </fieldset>
+
+      <fieldset>
+        <legend>Coordenadas / Observações</legend>
+
+        <label>
+          Entrada de dados
+          <textarea id="coordinates-text" name="coordinates_text" rows="8"></textarea>
+        </label>
+
+        <label>
+          Ou arquivo
+          <input id="coordinates-file" type="file" name="file" accept=".csv,.txt,.zip" />
+        </label>
+
+      </fieldset>
+
+      <button type="submit">Processar</button>
+
+    </form>
+
+    <p id="error" class="error"></p>
+
+  </section>
+
+  <section class="card hidden" id="results">
+    <h2>Resultado</h2>
+
+    <div id="metrics"></div>
+    <div id="map"></div>
+
+    <h3>Segmentos</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Início</th>
+          <th>Fim</th>
+          <th>Distância</th>
+          <th>Azimute</th>
+          <th>Azimute ajustado</th>
+          <th>Erro</th>
+          <th>Rumo</th>
+        </tr>
+      </thead>
+      <tbody id="segments-body"></tbody>
+    </table>
+
+    <h3>Memorial</h3>
+    <pre id="memorial"></pre>
+  </section>
+
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/js/app.js"></script>
+
+</body>
+</html>

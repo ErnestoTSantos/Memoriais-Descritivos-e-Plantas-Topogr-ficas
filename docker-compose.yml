@@ -1,0 +1,68 @@
+services:
+  web:
+    build: .
+    container_name: geomemorial-web
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_DEBUG: "1"
+      DJANGO_ALLOWED_HOSTS: "*"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: geomemorial
+      POSTGRES_USER: geomemorial
+      POSTGRES_PASSWORD: geomemorial
+      USE_S3: "1"
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_STORAGE_BUCKET_NAME: geomemorial
+      AWS_S3_ENDPOINT_URL: http://minio:9000
+      AWS_S3_REGION_NAME: us-east-1
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: geomemorial-db
+    environment:
+      POSTGRES_DB: geomemorial
+      POSTGRES_USER: geomemorial
+      POSTGRES_PASSWORD: geomemorial
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geomemorial -d geomemorial"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    container_name: geomemorial-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: geomemorial-minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done;
+      /usr/bin/mc mb --ignore-existing local/geomemorial;
+      /usr/bin/mc anonymous set public local/geomemorial;
+      exit 0;
+      "
+
+volumes: {}

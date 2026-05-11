@@ -1,0 +1,22 @@
+flowchart TD
+    A[Inicio] --> B[Receber arquivo ou texto]
+    B --> C{Formato valido?}
+    C -- Nao --> C1[Retornar erro de validacao] --> Z[Fim]
+    C -- Sim --> D[Converter para lista de vertices]
+    D --> E{Minimo 3 vertices unicos?}
+    E -- Nao --> E1[Retornar erro geometrico] --> Z
+    E -- Sim --> F[Aplicar fechamento automatico]
+    F --> G[Calcular area, perimetro e erro]
+    G --> H[Gerar segmentos e memorial]
+    H --> I[Renderizar poligono no mapa]
+    I --> J{Formato de saida}
+    J --> J1[PDF]
+    J --> J2[DOCX]
+    J --> J3[DXF]
+    J --> J4[DWG]
+    J1 --> K[Salvar artefato]
+    J2 --> K
+    J3 --> K
+    J4 --> K
+    K --> L[Disponibilizar download]
+    L --> Z[Fim]
