@@ -1,161 +1,531 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GeoMemorial</title>
+  <title>GeoMemorial — Memorial Descritivo Técnico</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺</text></svg>" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="/static/css/styles.css" />
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
 </head>
 
 <body>
-<main class="container">
 
-  <header class="hero">
-    <div>
-      <p class="eyebrow">Plataforma Técnica</p>
-      <h1>GeoMemorial</h1>
-      <p class="hero-copy">Gere memorial descritivo e planta técnica com consistência profissional.</p>
+  <!-- ══════════════════════════════════════════
+       HEADER
+  ══════════════════════════════════════════ -->
+  <header class="app-header">
+    <div class="container">
+      <div class="header-brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-eyebrow">Plataforma Técnica</div>
+          <div class="brand-name">GeoMemorial</div>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge badge-info">INCRA-compatível</span>
+        <span class="badge badge-info">SIGEF</span>
+        <span class="badge badge-info">NBR 14166</span>
+      </div>
     </div>
   </header>
 
-  <section class="card">
-    <div class="section-head">
-      <h2>Dados do imóvel</h2>
+  <!-- ══════════════════════════════════════════
+       STEPS INDICATOR
+  ══════════════════════════════════════════ -->
+  <div class="steps-bar">
+    <div class="container">
+      <ol class="steps" id="steps-indicator">
+        <li class="step step-active" data-step="1">
+          <span class="step-num">1</span>
+          <span class="step-label">Identificação</span>
+        </li>
+        <li class="step" data-step="2">
+          <span class="step-num">2</span>
+          <span class="step-label">Medições</span>
+        </li>
+        <li class="step" data-step="3">
+          <span class="step-num">3</span>
+          <span class="step-label">Processamento</span>
+        </li>
+        <li class="step" data-step="4">
+          <span class="step-num">4</span>
+          <span class="step-label">Resultado</span>
+        </li>
+      </ol>
     </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       MAIN CONTENT
+  ══════════════════════════════════════════ -->
+  <main class="container main-content">
 
     <form id="process-form">
+      <input type="hidden" name="irradiation_origin_x" value="" />
+      <input type="hidden" name="irradiation_origin_y" value="" />
 
-      <fieldset>
-        <legend>Informações cadastrais</legend>
+      <!-- ── STEP 1 · IDENTIFICAÇÃO ── -->
+      <section class="card" id="section-identification">
+        <div class="card-header">
+          <div class="card-header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+          </div>
+          <div>
+            <h2>Identificação do Imóvel</h2>
+            <p>Dados cadastrais e parâmetros do levantamento</p>
+          </div>
+        </div>
 
-        <div class="grid">
-
-          <label>Imóvel
-            <input name="property_name" />
+        <div class="fields-grid">
+          <label class="field-label">
+            <span class="label-text">Nome do Imóvel <span class="required">*</span></span>
+            <input name="property_name" placeholder="Ex: Fazenda Santa Luzia" />
           </label>
 
-          <label>Proprietário
-            <input name="owner_name" />
+          <label class="field-label">
+            <span class="label-text">Proprietário <span class="required">*</span></span>
+            <input name="owner_name" placeholder="Nome completo do proprietário" />
           </label>
 
-          <label>Município
-            <input name="municipality" />
+          <label class="field-label">
+            <span class="label-text">Município <span class="required">*</span></span>
+            <input name="municipality" placeholder="Ex: Presidente Prudente" />
           </label>
 
-          <label>UF
-            <input name="state" maxlength="2" />
+          <label class="field-label field-short">
+            <span class="label-text">UF</span>
+            <input name="state" maxlength="2" placeholder="SP" />
           </label>
 
-          <label>Datum
-            <input name="datum" />
+          <label class="field-label">
+            <span class="label-text">Datum</span>
+            <input name="datum" placeholder="Ex: SIRGAS2000" />
           </label>
 
-          <label>Sistema
-            <input name="coordinate_system" />
+          <label class="field-label">
+            <span class="label-text">Sistema de Coordenadas</span>
+            <input name="coordinate_system" placeholder="Ex: UTM Fuso 22S" />
           </label>
+        </div>
 
-          <label>Modalidade
+        <div class="fields-row mt-lg">
+          <label class="field-label">
+            <span class="label-text">Modalidade de Medição</span>
             <select name="measurement_mode" id="measurement-mode">
-              <option value="ponto_a_ponto">Ponto a ponto</option>
-              <option value="irradiacao">Irradiação</option>
+              <option value="planimetrico">Planimetrico (caminhamento)</option>
+              <option value="irradiacao">Irradiação (estação total)</option>
             </select>
           </label>
 
-          <label class="irradiation-only hidden">
-            Estação X
-            <input name="irradiation_origin_x" type="number" step="any" inputmode="decimal" />
-          </label>
-
-          <label class="irradiation-only hidden">
-            Estação Y
-            <input name="irradiation_origin_y" type="number" step="any" inputmode="decimal" />
-          </label>
-
-          <label>
-            Tolerância de fechamento (m)
-            <input name="closure_tolerance_m" type="number" step="any" inputmode="decimal" />
-          </label>
-
-          <label>
-            Erro angular (s)
-            <input name="irradiation_angle_error_seconds" type="number" step="any" inputmode="decimal" />
-          </label>
-
-          <label>
-            Limite erro angular (s)
-            <input name="angle_error_limit_seconds" type="number" step="any" inputmode="decimal" />
-          </label>
-
-        </div>
-
-        <div class="irradiation-only hidden">
-          <label>
-            Estações (opcional)
-            <textarea name="stations_text" rows="3"></textarea>
+          <label class="field-label">
+            <span class="label-text">Erro angular do equipamento (s)</span>
+            <input name="equipment_angular_error_seconds" type="number" step="any" inputmode="decimal" placeholder="Ex: 10" />
           </label>
         </div>
 
-      </fieldset>
+        <!-- Irradiation stations manager (shown only in irradiation mode) -->
+        <div class="irradiation-only hidden mt-lg" id="irradiation-stations-section">
+          <div class="alert alert-info">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>No modo <strong>Irradiação</strong>, cadastre as estações com suas coordenadas UTM. Use o mesmo nome na coluna <strong>Estação</strong> da tabela de observações abaixo.</span>
+          </div>
+          <div class="table-section mt-md">
+            <div class="table-header">
+              <h3>Estações de Irradiação</h3>
+              <span class="table-count" id="stations-count">0 estações</span>
+            </div>
+            <div class="table-wrapper">
+              <table id="stations-table" class="traverse-input-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th title="Nome da estação (deve coincidir com a coluna Estação nas observações)">Nome</th>
+                    <th title="Coordenada X / Leste da estação (m)">X · E (m)</th>
+                    <th title="Coordenada Y / Norte da estação (m)">Y · N (m)</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="stations-body"></tbody>
+              </table>
+            </div>
+            <button type="button" class="btn-add-row" id="add-station-row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Adicionar estação
+            </button>
+          </div>
+          <div id="stations-validation" class="validation-panel mt-md hidden"></div>
+        </div>
 
-      <fieldset>
-        <legend>Coordenadas / Observações</legend>
+      </section>
 
-        <label>
-          Entrada de dados
-          <textarea id="coordinates-text" name="coordinates_text" rows="8"></textarea>
-        </label>
+      <!-- ── STEP 2 · MEDIÇÕES ── -->
+      <section class="card" id="section-coordinates">
+        <div class="card-header">
+          <div class="card-header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+            </svg>
+          </div>
+          <div>
+            <h2>Dados do Levantamento</h2>
+            <p>Informe ângulos e distâncias — as coordenadas são calculadas automaticamente</p>
+          </div>
+        </div>
 
-        <label>
-          Ou arquivo
-          <input id="coordinates-file" type="file" name="file" accept=".csv,.txt,.zip" />
-        </label>
+        <!-- ── UNIFIED TRAVERSE TABLE (planimetric & irradiation) ── -->
+        <div id="traverse-section">
 
-      </fieldset>
+          <!-- Azimute inicial — shown only in planimetric mode -->
+          <div class="fields-row planimetric-only" id="initial-azimuth-section">
+            <label class="field-label">
+              <span class="label-text">Azimute inicial</span>
+              <div class="dms-group" id="initial-azimuth-dms">
+                <input class="dms-deg" type="number" min="0" max="360" placeholder="000" value="0" />
+                <span class="dms-sep">°</span>
+                <input class="dms-min" type="number" min="0" max="59" placeholder="00" value="0" />
+                <span class="dms-sep">'</span>
+                <input class="dms-sec" type="number" min="0" max="59" placeholder="00" value="0" />
+                <span class="dms-sep">"</span>
+              </div>
+            </label>
+          </div>
 
-      <button type="submit">Processar</button>
+          <div class="table-section mt-lg">
+            <div class="table-header">
+              <h3 id="traverse-table-title">Caminhamento Topográfico</h3>
+              <span class="table-count" id="traverse-count">0 linhas</span>
+            </div>
+            <div class="table-wrapper">
+              <table id="traverse-table" class="traverse-input-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th title="Estação onde o instrumento está instalado">Estação</th>
+                    <th title="Ponto visado (baliza / vértice)">Ponto visado</th>
+                    <th title="Distância horizontal medida (m)">Distância (m)</th>
+                    <th id="traverse-angle-header" title="Ângulo em GMS — graus°minutos'segundos&quot;">Ângulo observado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="traverse-body"></tbody>
+              </table>
+            </div>
+            <button type="button" class="btn-add-row" id="add-traverse-row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Adicionar linha
+            </button>
+          </div>
+
+          <!-- Real-time validation -->
+          <div class="validation-panel mt-md" id="validation-panel">
+            <div class="validation-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px">
+                <path d="M9 12l2 2 4-4"/>
+                <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/>
+              </svg>
+              Pré-validação
+            </div>
+            <div id="validation-items">
+              <div class="validation-item neutral">
+                <span class="vi-icon">—</span>
+                <span>Aguardando dados de entrada...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ── SUBMIT ── -->
+      <div class="submit-area">
+        <button type="submit" class="btn-process" id="submit-btn">
+          <span class="btn-text">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            Processar Levantamento
+          </span>
+          <span class="btn-loading hidden">
+            <span class="spinner"></span>
+            Processando...
+          </span>
+        </button>
+        <p id="error" class="error-msg hidden"></p>
+      </div>
 
     </form>
 
-    <p id="error" class="error"></p>
+    <!-- ══════════════════════════════════════════
+         RESULTS (steps 3 & 4)
+    ══════════════════════════════════════════ -->
+    <section class="card hidden" id="results">
 
-  </section>
+      <!-- Status bar -->
+      <div id="processing-status-bar" class="status-bar status-ok">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <strong id="status-text">Levantamento processado com sucesso</strong>
+        <div class="status-chips" id="status-chips"></div>
+      </div>
 
-  <section class="card hidden" id="results">
-    <h2>Resultado</h2>
+      <!-- Angular summary (traverse mode) -->
+      <div id="angular-summary" class="hidden"></div>
 
-    <div id="metrics"></div>
-    <div id="map"></div>
+      <!-- Metrics -->
+      <div class="metrics-grid" id="metrics"></div>
 
-    <h3>Segmentos</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Início</th>
-          <th>Fim</th>
-          <th>Distância</th>
-          <th>Azimute</th>
-          <th>Azimute ajustado</th>
-          <th>Erro</th>
-          <th>Rumo</th>
-        </tr>
-      </thead>
-      <tbody id="segments-body"></tbody>
-    </table>
+      <!-- Map -->
+      <div class="map-container">
+        <div id="map"></div>
+        <div class="map-overlay-controls">
+          <button type="button" class="map-ctrl-btn" id="map-fit-btn" title="Enquadrar tudo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+          </button>
+          <button type="button" class="map-ctrl-btn" id="map-labels-btn" title="Alternar rótulos" data-active="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <line x1="3" y1="9" x2="21" y2="9"/>
+              <line x1="9" y1="21" x2="9" y2="9"/>
+            </svg>
+          </button>
+        </div>
+        <div class="map-north-arrow" title="Norte">N▲</div>
+      </div>
 
-    <h3>Memorial</h3>
-    <pre id="memorial"></pre>
-  </section>
+      <!-- Validation summary -->
+      <div id="results-validation" class="results-validation hidden"></div>
 
-</main>
+      <div id="planimetric-summary" class="planimetric-summary hidden"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/static/js/app.js"></script>
+      <!-- Irradiation table (shown only in irradiation mode) -->
+      <div class="table-section hidden" id="irradiation-table-section">
+        <div class="table-header">
+          <h3>Tabela de Irradiação</h3>
+          <span class="table-count" id="irradiation-table-count"></span>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr class="group-row">
+                <th colspan="4">Identificação</th>
+                <th colspan="2">Orientação</th>
+                <th colspan="2">Projeções</th>
+                <th colspan="2">Coordenadas Finais</th>
+              </tr>
+              <tr>
+                <th>#</th>
+                <th>Estação</th>
+                <th>Ponto visado</th>
+                <th>Distância (m)</th>
+                <th>Azimute (GMS)</th>
+                <th>Azimute (°)</th>
+                <th>ΔX = d·sen(Az)</th>
+                <th>ΔY = d·cos(Az)</th>
+                <th>X final</th>
+                <th>Y final</th>
+              </tr>
+            </thead>
+            <tbody id="irradiation-table-body"></tbody>
+          </table>
+        </div>
+      </div>
 
+      <!-- Planimetric table -->
+      <div class="table-section planimetric-table-section">
+        <div class="table-header">
+          <h3>Tabela Planimétrica Completa</h3>
+          <span class="table-count" id="segments-count"></span>
+        </div>
+        <div class="table-wrapper table-wrapper-wide">
+          <table class="manual-table">
+            <thead>
+              <tr class="group-row">
+                <th colspan="5">Caminhamento</th>
+                <th colspan="3">Ângulos</th>
+                <th colspan="2">Orientação</th>
+                <th colspan="6">Projeções</th>
+                <th colspan="6">Fechamento e Ajuste</th>
+                <th colspan="2">Coordenadas</th>
+                <th colspan="4">Auditoria</th>
+              </tr>
+              <tr>
+                <th>#</th>
+                <th>Estação</th>
+                <th>Ponto inicial</th>
+                <th>Ponto final</th>
+                <th>Distância</th>
+                <th>Ângulo obs.</th>
+                <th>Ajuste angular</th>
+                <th>Ângulo corr.</th>
+                <th>Azimute</th>
+                <th>Rumo</th>
+                <th>E(+)</th>
+                <th>W(-)</th>
+                <th>N(+)</th>
+                <th>S(-)</th>
+                <th>ΔX</th>
+                <th>ΔY</th>
+                <th>Erro X</th>
+                <th>Erro Y</th>
+                <th>Cx</th>
+                <th>Cy</th>
+                <th>X ajust.</th>
+                <th>Y ajust.</th>
+                <th>X acum.</th>
+                <th>Y acum.</th>
+                <th>Contrib.</th>
+                <th>Correção</th>
+                <th>Status</th>
+                <th>Observações</th>
+              </tr>
+            </thead>
+            <tbody id="segments-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Point adjustment table -->
+      <div class="table-section hidden" id="points-adjustment-section">
+        <div class="table-header">
+          <h3>Pontos e Propagação do Erro</h3>
+          <span class="table-count" id="points-adjustment-count"></span>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Ponto</th>
+                <th>Coord. Ajustada</th>
+                <th>Erro Linear</th>
+                <th>Erro Angular</th>
+                <th>Erro Estimado</th>
+                <th>Correção ΔE/ΔN</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="points-adjustment-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Memorial descritivo -->
+      <div class="memorial-section">
+        <div class="memorial-header">
+          <h3>Memorial Descritivo</h3>
+          <button type="button" class="btn-copy" id="copy-memorial-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Copiar
+          </button>
+        </div>
+        <pre id="memorial"></pre>
+      </div>
+
+      <!-- Exports -->
+      <div class="exports-section">
+        <h3>Exportar Documentos</h3>
+        <div class="export-grid">
+
+          <button type="button" class="btn-export" data-format="pdf">
+            <div class="export-icon export-pdf">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </div>
+            <div class="export-info">
+              <strong>PDF</strong>
+              <span>Memorial descritivo</span>
+            </div>
+          </button>
+
+          <button type="button" class="btn-export" data-format="docx">
+            <div class="export-icon export-docx">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </div>
+            <div class="export-info">
+              <strong>DOCX</strong>
+              <span>Word editável</span>
+            </div>
+          </button>
+
+          <button type="button" class="btn-export" data-format="dxf">
+            <div class="export-icon export-dxf">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/>
+                <line x1="12" y1="22" x2="12" y2="15.5"/>
+                <polyline points="22 8.5 12 15.5 2 8.5"/>
+              </svg>
+            </div>
+            <div class="export-info">
+              <strong>DXF</strong>
+              <span>AutoCAD / CAD</span>
+            </div>
+          </button>
+
+          <button type="button" class="btn-export" data-format="dwg">
+            <div class="export-icon export-dwg">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <path d="M9 3v18M3 9h18M3 15h18M15 3v18"/>
+              </svg>
+            </div>
+            <div class="export-info">
+              <strong>DWG</strong>
+              <span>AutoCAD nativo</span>
+            </div>
+          </button>
+
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Toast container -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="{% static 'js/app.js' %}"></script>
 </body>
 </html>
