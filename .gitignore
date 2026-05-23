@@ -2,9 +2,15 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
 .venv/
 .env
 uploads/
 outputs/
+media/
+staticfiles/
 .idea/
 .DS_Store
