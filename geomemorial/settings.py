@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -56,16 +57,32 @@ TEMPLATES = [
 WSGI_APPLICATION = "geomemorial.wsgi.application"
 ASGI_APPLICATION = "geomemorial.asgi.application"
 
-DATABASES = {
-    "default": {
+def database_config() -> dict[str, str]:
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        parsed = urlparse(database_url)
+        return {
+            "ENGINE": "django.contrib.gis.db.backends.postgis",
+            "NAME": parsed.path.lstrip("/"),
+            "USER": parsed.username or "",
+            "PASSWORD": parsed.password or "",
+            "HOST": parsed.hostname or "",
+            "PORT": str(parsed.port or 5432),
+        }
+
+    return {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
-        "NAME": os.getenv("POSTGRES_DB", "geomemorial"),
-        "USER": os.getenv("POSTGRES_USER", "geomemorial"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "geomemorial"),
-        "HOST": os.getenv("POSTGRES_HOST", "db"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "NAME": os.getenv("POSTGRES_DB", os.getenv("PGDATABASE", "geomemorial")),
+        "USER": os.getenv("POSTGRES_USER", os.getenv("PGUSER", "geomemorial")),
+        "PASSWORD": os.getenv(
+            "POSTGRES_PASSWORD", os.getenv("PGPASSWORD", "geomemorial")
+        ),
+        "HOST": os.getenv("POSTGRES_HOST", os.getenv("PGHOST", "db")),
+        "PORT": os.getenv("POSTGRES_PORT", os.getenv("PGPORT", "5432")),
     }
-}
+
+
+DATABASES = {"default": database_config()}
 
 AUTH_PASSWORD_VALIDATORS = []
 

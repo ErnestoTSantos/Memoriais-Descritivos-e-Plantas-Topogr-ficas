@@ -1,9 +1,12 @@
 #!/usr/bin/env sh
 set -eu
 
-if [ -n "${POSTGRES_HOST:-}" ]; then
-  echo "Aguardando Postgres em ${POSTGRES_HOST}:${POSTGRES_PORT:-5432}..."
-  until nc -z "$POSTGRES_HOST" "${POSTGRES_PORT:-5432}"; do
+DB_HOST="${POSTGRES_HOST:-${PGHOST:-}}"
+DB_PORT="${POSTGRES_PORT:-${PGPORT:-5432}}"
+
+if [ -n "$DB_HOST" ]; then
+  echo "Aguardando Postgres em ${DB_HOST}:${DB_PORT}..."
+  until nc -z "$DB_HOST" "$DB_PORT"; do
     sleep 1
   done
 fi
