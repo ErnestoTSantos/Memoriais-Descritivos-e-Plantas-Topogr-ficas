@@ -36,6 +36,7 @@ const stationsBody = document.getElementById("stations-body");
 const addStationRowBtn = document.getElementById("add-station-row");
 const stationsCountEl = document.getElementById("stations-count");
 const stationsValidationEl = document.getElementById("stations-validation");
+const stationNamesListEl = document.getElementById("station-names-list");
 
 const mapFitBtn = document.getElementById("map-fit-btn");
 const mapLabelsBtn = document.getElementById("map-labels-btn");
@@ -111,7 +112,7 @@ function addTraverseRow(station = "", sightedPoint = "", distance = "") {
   tr.dataset.rowId = idx;
   tr.innerHTML =
     `<td class="mono">${idx}</td>` +
-    `<td><input class="traverse-station" type="text" value="${escapeHtml(station)}" placeholder="A" /></td>` +
+    `<td><input class="traverse-station" type="text" list="station-names-list" value="${escapeHtml(station)}" placeholder="A" /></td>` +
     `<td><input class="traverse-point" type="text" value="${escapeHtml(sightedPoint)}" placeholder="B" /></td>` +
     `<td><input class="traverse-distance" type="number" step="any" value="${escapeHtml(String(distance))}" placeholder="25.50" /></td>` +
     `<td>${dmsGroupHtml("traverse-angle-dms")}</td>` +
@@ -189,7 +190,7 @@ function runTraverseValidation() {
     if (measurementModeEl?.value === "irradiacao") {
       const stations = serializeStations();
       const stationNames = new Set(stations.filter(s => s.name).map(s => s.name));
-      if (stationNames.size > 1) {
+      if (stationNames.size > 0) {
         const unknownStations = new Set(
           valid.filter(r => r.station && !stationNames.has(r.station)).map(r => r.station)
         );
@@ -236,6 +237,7 @@ function addStationRow(name = "", x = "", y = "") {
     `</svg></button></td>`;
   stationsBody.appendChild(tr);
   updateStationsCount();
+  updateStationNameOptions();
   runStationsValidation();
 }
 
@@ -245,14 +247,25 @@ window.removeStationRow = function removeStationRow(btn) {
     tr.querySelector("td:first-child").textContent = i + 1;
   });
   updateStationsCount();
+  updateStationNameOptions();
   runStationsValidation();
 };
 
 function updateStationsCount() {
   const n = stationsBody ? stationsBody.querySelectorAll("tr").length : 0;
   if (stationsCountEl) {
-    stationsCountEl.textContent = `${n} estação${n !== 1 ? "ões" : ""}`;
+    stationsCountEl.textContent = n === 1 ? "1 estação" : `${n} estações`;
   }
+}
+
+function updateStationNameOptions() {
+  if (!stationNamesListEl) return;
+  const names = serializeStations()
+    .map(station => station.name)
+    .filter(Boolean);
+  stationNamesListEl.innerHTML = [...new Set(names)]
+    .map(name => `<option value="${escapeHtml(name)}"></option>`)
+    .join("");
 }
 
 function serializeStations() {
@@ -280,7 +293,7 @@ function validateStationsData(stations, observations) {
     if (!Number.isFinite(s.y)) errors.push(`Estação '${s.name || i + 1}': Y inválido.`);
   });
 
-  if (observations && names.size > 1) {
+  if (observations && names.size > 0) {
     observations.forEach((obs, i) => {
       if (!obs.station) {
         errors.push(`Linha ${i + 1}: informe o nome da estação.`);
@@ -317,7 +330,9 @@ function runStationsValidation() {
 
 stationsBody?.addEventListener("input", () => {
   updateStationsCount();
+  updateStationNameOptions();
   runStationsValidation();
+  runTraverseValidation();
 });
 
 addStationRowBtn?.addEventListener("click", () => addStationRow());

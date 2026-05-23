@@ -38,6 +38,7 @@ class ValidationWorkflowTests(unittest.TestCase):
         # Unified traverse table (replaces separate irradiation textarea)
         self.assertIn('id="traverse-body"', html)
         self.assertIn('id="traverse-table"', html)
+        self.assertIn('id="station-names-list"', html)
         self.assertIn('id="initial-azimuth-dms"', html)
         self.assertIn('class="dms-group"', html)
         self.assertIn('name="measurement_mode"', html)
@@ -71,6 +72,14 @@ class ValidationWorkflowTests(unittest.TestCase):
             "Y acum.",
         ):
             self.assertIn(header, html)
+
+    def test_irradiation_station_ui_uses_registered_station_names(self) -> None:
+        js = APP_JS.read_text(encoding="utf-8")
+
+        self.assertIn('list="station-names-list"', js)
+        self.assertIn('n === 1 ? "1 estação" : `${n} estações`', js)
+        self.assertIn("function updateStationNameOptions()", js)
+        self.assertIn("observations && names.size > 0", js)
 
     def test_frontend_renders_global_tolerance_diagnostics(self) -> None:
         js = APP_JS.read_text(encoding="utf-8")
