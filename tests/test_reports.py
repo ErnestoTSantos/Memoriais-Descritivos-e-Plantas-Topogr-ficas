@@ -6,7 +6,12 @@ from pathlib import Path
 
 from app.services.geometry import build_segments, ensure_closed
 from app.services.parsing import parse_text_coordinates
-from app.services.reports import export_docx, export_dxf, export_pdf, generate_memorial_text
+from app.services.reports import (
+    export_docx,
+    export_dxf,
+    export_pdf,
+    generate_memorial_text,
+)
 
 
 class ReportServiceTests(unittest.TestCase):
@@ -22,7 +27,7 @@ class ReportServiceTests(unittest.TestCase):
             state="PA",
             datum="SIRGAS2000",
             coordinate_system="UTM",
-            measurement_mode="ponto_a_ponto",
+            measurement_mode="planimetrico",
             irradiation_origin_x=None,
             irradiation_origin_y=None,
             irradiation_angle_error_seconds=None,
@@ -36,26 +41,39 @@ class ReportServiceTests(unittest.TestCase):
         self.assertIn("diretrizes do INCRA", memorial)
         self.assertIn("Provimento CNJ no 65/2017", memorial)
 
-    def test_memorial_rejects_open_polygon_segments(self) -> None:
-        points = parse_text_coordinates("V-01, 0, 0\nV-02, 30, 0\nV-03, 30, 40")
-        segments = build_segments(points)
+    def test_memorial_accepts_logically_closed_segments(self) -> None:
+        """generate_memorial_text must NOT raise when the segment list ends at a
+        vertex other than the first (logically-closed polygon).
 
-        with self.assertRaises(ValueError):
-            generate_memorial_text(
-                property_name="Projeto Teste",
-                owner_name="Profissional",
-                municipality="Belem",
-                state="PA",
-                datum="SIRGAS2000",
-                coordinate_system="UTM",
-                measurement_mode="ponto_a_ponto",
-                irradiation_origin_x=None,
-                irradiation_origin_y=None,
-                irradiation_angle_error_seconds=None,
-                area_m2=600.0,
-                perimeter_m=120.0,
-                segments=segments,
-            )
+        Before the residual-segment fix, generate_memorial_text() raised
+        ValueError whenever segments[-1].end_vertex != segments[0].start_vertex.
+        That check was removed because logical closure (within tolerance) is
+        validated upstream in process_coordinates(); the report function itself
+        must accept any valid list of surveyed segments.
+        """
+        points = parse_text_coordinates("V-01, 0, 0\nV-02, 30, 0\nV-03, 30, 40")
+        segments = build_segments(points)  # 2 segments: V-01→V-02, V-02→V-03
+
+        # Should not raise — segments end at V-03, not V-01.
+        memorial = generate_memorial_text(
+            property_name="Projeto Teste",
+            owner_name="Profissional",
+            municipality="Belem",
+            state="PA",
+            datum="SIRGAS2000",
+            coordinate_system="UTM",
+            measurement_mode="planimetrico",
+            irradiation_origin_x=None,
+            irradiation_origin_y=None,
+            irradiation_angle_error_seconds=None,
+            area_m2=600.0,
+            perimeter_m=120.0,
+            segments=segments,
+        )
+        self.assertIn("V-01", memorial)
+        self.assertIn("V-03", memorial)
+        # Artificial closing leg must NOT appear.
+        self.assertNotIn("V-03 ao vertice V-01", memorial)
 
     def test_exports_generate_non_empty_files(self) -> None:
         points = parse_text_coordinates("V-01, 0, 0\nV-02, 30, 0\nV-03, 30, 40")
@@ -68,7 +86,7 @@ class ReportServiceTests(unittest.TestCase):
             state="PA",
             datum="SIRGAS2000",
             coordinate_system="UTM",
-            measurement_mode="ponto_a_ponto",
+            measurement_mode="planimetrico",
             irradiation_origin_x=None,
             irradiation_origin_y=None,
             irradiation_angle_error_seconds=None,

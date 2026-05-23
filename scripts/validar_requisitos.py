@@ -17,7 +17,12 @@ from app.services.geometry import (
     validate_points,
 )
 from app.services.parsing import parse_text_coordinates
-from app.services.reports import export_docx, export_dxf, export_pdf, generate_memorial_text
+from app.services.reports import (
+    export_docx,
+    export_dxf,
+    export_pdf,
+    generate_memorial_text,
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_INPUT = BASE_DIR / "samples" / "validacao_manual_profissionais.json"
@@ -74,7 +79,11 @@ def _conformity_checks(memorial_text: str, expected_segments: int) -> bool:
         if token not in memorial_text:
             return False
 
-    segment_lines = [line for line in memorial_text.splitlines() if line.strip().startswith(tuple(f"{i:02d})" for i in range(1, 1000)))]
+    segment_lines = [
+        line
+        for line in memorial_text.splitlines()
+        if line.strip().startswith(tuple(f"{i:02d})" for i in range(1, 1000)))
+    ]
     return len(segment_lines) == expected_segments
 
 
@@ -157,10 +166,15 @@ def _run_case(case: dict, export_dir: Path) -> CaseResult:
 
     auto_time = t4 - t0
     manual_time = float(manual["manual_time_seconds"])
-    time_gain = ((manual_time - auto_time) / manual_time) * 100 if manual_time > 0 else 0.0
+    time_gain = (
+        ((manual_time - auto_time) / manual_time) * 100 if manual_time > 0 else 0.0
+    )
     time_ok = auto_time < manual_time
 
-    exports_ok = all(path.exists() and path.stat().st_size > 0 for path in [pdf_path, docx_path, dxf_path, dwg_path])
+    exports_ok = all(
+        path.exists() and path.stat().st_size > 0
+        for path in [pdf_path, docx_path, dxf_path, dwg_path]
+    )
     usability_ok = _usability_checks() and exports_ok
 
     return CaseResult(
@@ -198,7 +212,9 @@ def _write_report(results: list[CaseResult], output_path: Path) -> None:
 
     total_auto = sum(r.auto_time_seconds for r in results)
     total_manual = sum(r.manual_time_seconds for r in results)
-    total_gain = ((total_manual - total_auto) / total_manual) * 100 if total_manual > 0 else 0.0
+    total_gain = (
+        ((total_manual - total_auto) / total_manual) * 100 if total_manual > 0 else 0.0
+    )
 
     lines = [
         "# Relatorio de Validacao Pratica",
@@ -220,7 +236,8 @@ def _write_report(results: list[CaseResult], output_path: Path) -> None:
         "",
         "## Detalhamento por caso",
         "",
-        "| Caso | Precisao | Tempo | Conformidade | Usabilidade | Dif area | Dif perimetro | Dif fechamento | Ganho tempo |",
+        "| Caso | Precisao | Tempo | Conformidade | Usabilidade | Dif area | "
+        "Dif perimetro | Dif fechamento | Ganho tempo |",
         "|---|---|---|---|---|---:|---:|---:|---:|",
     ]
 
@@ -256,11 +273,16 @@ def _write_report(results: list[CaseResult], output_path: Path) -> None:
             "## Resposta das hipoteses",
             "",
             f"- `H1` (tempo + erros operacionais): {h1_status}.",
-            "- Evidencia: comparativo manual x automatizado com ganho de tempo e consistencia geometrica nos casos de teste.",
+            "- Evidencia: comparativo manual x automatizado com ganho de tempo "
+            "e consistencia geometrica nos casos de teste.",
             f"- `H2` (padronizacao e conformidade INCRA/CNJ): {h2_status}.",
-            "- Evidencia: checklist tecnico/documental aprovado no fluxo automatizado; validacao de aceitacao institucional externa permanece pendente.",
+            "- Evidencia: checklist tecnico/documental aprovado no fluxo "
+            "automatizado; validacao de aceitacao institucional externa "
+            "permanece pendente.",
             f"- `H3` (integracao de formatos + adocao web): {h3_status}.",
-            "- Evidencia: fluxo web unico aprovado com importacao `CSV/TXT`, processamento assistido em mapa e exportacao `DXF/DWG`, sem dependencia de software CAD no uso da plataforma.",
+            "- Evidencia: fluxo web unico aprovado com importacao `CSV/TXT`, "
+            "processamento assistido em mapa e exportacao `DXF/DWG`, sem "
+            "dependencia de software CAD no uso da plataforma.",
             "",
             "## Limites desta validacao",
             "",
@@ -274,8 +296,15 @@ def _write_report(results: list[CaseResult], output_path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Valida os requisitos tecnicos e gera evidencias de teste.")
-    parser.add_argument("--input", type=Path, default=DEFAULT_INPUT, help="Arquivo JSON com casos de referencia manual.")
+    parser = argparse.ArgumentParser(
+        description="Valida os requisitos tecnicos e gera evidencias de teste."
+    )
+    parser.add_argument(
+        "--input",
+        type=Path,
+        default=DEFAULT_INPUT,
+        help="Arquivo JSON com casos de referencia manual.",
+    )
     parser.add_argument(
         "--output",
         type=Path,
@@ -299,7 +328,13 @@ def main() -> None:
     failed = [
         r.case_id
         for r in results
-        if not (r.precision_ok and r.time_ok and r.conformity_ok and r.usability_ok and r.exports_ok)
+        if not (
+            r.precision_ok
+            and r.time_ok
+            and r.conformity_ok
+            and r.usability_ok
+            and r.exports_ok
+        )
     ]
     if failed:
         raise SystemExit(f"Validacao com falhas nos casos: {', '.join(failed)}")

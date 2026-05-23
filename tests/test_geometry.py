@@ -16,7 +16,9 @@ from app.services.parsing import parse_text_coordinates
 
 class GeometryServiceTests(unittest.TestCase):
     def test_rectangle_metrics_are_exact(self) -> None:
-        points = parse_text_coordinates("V-01, 0, 0\nV-02, 100, 0\nV-03, 100, 50\nV-04, 0, 50")
+        points = parse_text_coordinates(
+            "V-01, 0, 0\nV-02, 100, 0\nV-03, 100, 50\nV-04, 0, 50"
+        )
         validate_points(points)
         closed = ensure_closed(points)
 
@@ -33,7 +35,9 @@ class GeometryServiceTests(unittest.TestCase):
             validate_points(points)
 
     def test_rejects_self_intersecting_polygon(self) -> None:
-        points = parse_text_coordinates("V-01, 0, 0\nV-02, 2, 2\nV-03, 0, 2\nV-04, 2, 0")
+        points = parse_text_coordinates(
+            "V-01, 0, 0\nV-02, 2, 2\nV-03, 0, 2\nV-04, 2, 0"
+        )
         closed = ensure_closed(points)
 
         with self.assertRaisesRegex(ValueError, "auto-intersecao"):

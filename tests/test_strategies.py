@@ -26,14 +26,19 @@ class ParsingStrategyFactoryTests(unittest.TestCase):
     def test_selects_irradiation_strategy_for_csv_extension(self) -> None:
         strategy = self.factory.for_irradiation_upload_name("observacoes.csv")
         observations = strategy.parse(
-            b"vertex,estacao_x,estacao_y,azimute,distancia\nV-01,100,200,0,10\nV-02,100,200,90,10\nV-03,100,200,180,10\n"
+            b"vertex,estacao_x,estacao_y,azimute,distancia\n"
+            b"V-01,100,200,0,10\n"
+            b"V-02,100,200,90,10\n"
+            b"V-03,100,200,180,10\n"
         )
         self.assertEqual(len(observations), 3)
         self.assertAlmostEqual(observations[0].station_x or 0.0, 100.0, places=6)
 
     def test_parses_irradiation_azimuth_in_dms(self) -> None:
         strategy = self.factory.for_irradiation_text()
-        observations = strategy.parse("V-01, 15°30'00\", 10\nV-02, 90°00'00\", 10\nV-03, 180°00'00\", 10")
+        observations = strategy.parse(
+            "V-01, 15°30'00\", 10\nV-02, 90°00'00\", 10\nV-03, 180°00'00\", 10"
+        )
         self.assertAlmostEqual(observations[0].azimuth_deg, 15.5, places=6)
 
     def test_parses_irradiation_with_station_per_observation(self) -> None:
@@ -54,12 +59,12 @@ class ParsingStrategyFactoryTests(unittest.TestCase):
         self.assertAlmostEqual(points[1].x, 110.0, places=6)
         self.assertAlmostEqual(points[1].y, 200.0, places=6)
 
-    def test_irradiation_conversion_orders_points_by_azimuth(self) -> None:
+    def test_irradiation_conversion_preserves_input_order(self) -> None:
         strategy = self.factory.for_irradiation_text()
         observations = strategy.parse("V-01, 300, 10\nV-02, 20, 10\nV-03, 150, 10")
         points = irradiation_to_points(observations, origin_x=0.0, origin_y=0.0)
 
-        self.assertEqual([point.vertex for point in points], ["V-02", "V-03", "V-01"])
+        self.assertEqual([point.vertex for point in points], ["V-01", "V-02", "V-03"])
 
     def test_irradiation_conversion_uses_station_in_each_observation(self) -> None:
         strategy = self.factory.for_irradiation_text()
@@ -76,7 +81,9 @@ class ParsingStrategyFactoryTests(unittest.TestCase):
     def test_irradiation_conversion_applies_angular_error_seconds(self) -> None:
         strategy = self.factory.for_irradiation_text()
         observations = strategy.parse("V-01, 0, 10\nV-02, 90, 10\nV-03, 180, 10")
-        points = irradiation_to_points(observations, origin_x=100.0, origin_y=200.0, angle_error_seconds=3600.0)
+        points = irradiation_to_points(
+            observations, origin_x=100.0, origin_y=200.0, angle_error_seconds=3600.0
+        )
 
         self.assertAlmostEqual(points[0].x, 100.174524, places=6)
         self.assertAlmostEqual(points[0].y, 209.998477, places=6)
@@ -84,18 +91,22 @@ class ParsingStrategyFactoryTests(unittest.TestCase):
     def test_rejects_irradiation_with_invalid_azimuth_prefix(self) -> None:
         strategy = self.factory.for_irradiation_text()
         with self.assertRaises(ValueError):
-            strategy.parse('V-01, Az 90°00\'00", 100\nV-02, 180, 100\nV-03, 270, 100')
+            strategy.parse("V-01, Az 90°00'00\", 100\nV-02, 180, 100\nV-03, 270, 100")
 
     def test_rejects_irradiation_with_non_positive_distance(self) -> None:
         strategy = self.factory.for_irradiation_text()
         observations = strategy.parse("V-01, 0, 120\nV-02, 90, 0\nV-03, 180, 85")
-        with self.assertRaisesRegex(ValueError, "A distancia da irradiacao deve ser maior que zero."):
+        with self.assertRaisesRegex(
+            ValueError, "A distancia da irradiacao deve ser maior que zero."
+        ):
             irradiation_to_points(observations, origin_x=500000.0, origin_y=9000000.0)
 
     def test_rejects_irradiation_with_less_than_three_observations(self) -> None:
         strategy = self.factory.for_irradiation_text()
         observations = strategy.parse("V-01, 0, 120\nV-02, 90, 100")
-        with self.assertRaisesRegex(ValueError, "Informe ao menos 3 observacoes de irradiacao"):
+        with self.assertRaisesRegex(
+            ValueError, "Informe ao menos 3 observacoes de irradiacao"
+        ):
             irradiation_to_points(observations, origin_x=500000.0, origin_y=9000000.0)
 
     def test_rejects_irradiation_without_station_reference(self) -> None:
