@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
 import math
+from datetime import datetime
 from pathlib import Path
 
 import ezdxf
@@ -10,6 +10,7 @@ from docx.shared import Pt
 from fpdf import FPDF
 
 from app.models.schemas import CoordinatePoint, SegmentInfo
+from app.services.geometry import is_closed
 
 
 def generate_memorial_text(
@@ -28,11 +29,20 @@ def generate_memorial_text(
     segments: list[SegmentInfo],
 ) -> str:
     date_text = datetime.now().strftime("%d/%m/%Y")
-    measurement_label = "Irradiacao" if measurement_mode == "irradiacao" else "Ponto a ponto"
+    measurement_label = (
+        "Irradiacao" if measurement_mode == "irradiacao" else "Ponto a ponto"
+    )
 
     irradiation_origin_line = ""
-    if measurement_mode == "irradiacao" and irradiation_origin_x is not None and irradiation_origin_y is not None:
-        irradiation_origin_line = f"Estacao de irradiacao (X, Y): {irradiation_origin_x:.3f}, {irradiation_origin_y:.3f}\n"
+    if (
+        measurement_mode == "irradiacao"
+        and irradiation_origin_x is not None
+        and irradiation_origin_y is not None
+    ):
+        irradiation_origin_line = (
+            f"Estacao de irradiacao (X, Y): "
+            f"{irradiation_origin_x:.3f}, {irradiation_origin_y:.3f}\n"
+        )
     irradiation_polygon_line = ""
     if measurement_mode == "irradiacao":
         irradiation_polygon_line = "Poligonal gerada a partir de pontos irradiados.\n"
@@ -55,11 +65,6 @@ def generate_memorial_text(
         "DESCRICAO DOS LIMITES E CONFRONTACOES:\n"
     )
 
-    if segments and segments[-1].end_vertex != segments[0].start_vertex:
-        raise ValueError(
-            "Memorial invalido: poligono aberto. Inclua o trecho final do ultimo vertice ao primeiro."
-        )
-
     lines = []
     for idx, seg in enumerate(segments, start=1):
         lines.append(
@@ -77,15 +82,17 @@ def generate_memorial_text(
     return intro + "\n".join(lines) + footer
 
 
-def _prepare_closed_points(points: list[CoordinatePoint] | None) -> list[CoordinatePoint]:
+def _prepare_closed_points(
+    points: list[CoordinatePoint] | None,
+) -> list[CoordinatePoint]:
     if not points or len(points) < 3:
         return []
 
     closed = list(points)
     first = closed[0]
     last = closed[-1]
-    if first.vertex != last.vertex or first.x != last.x or first.y != last.y:
-        closed.append(first)
+    if not is_closed(first, last):
+        closed.append(CoordinatePoint(vertex=first.vertex, x=first.x, y=first.y))
     return closed
 
 
@@ -118,13 +125,16 @@ def _project_points(
     drawn_w = span_x * scale
     drawn_h = span_y * scale
     offset_x = left + padding + ((usable_w - drawn_w) / 2)
-    offset_y = top + padding + ((usable_h - drawn_h) / 2)
+    # Keep Y-up survey coordinates inside the Y-down PDF drawing box.
+    inner_offset_y = padding + ((usable_h - drawn_h) / 2)
 
     projected: list[tuple[float, float]] = []
     for point in points:
         x = offset_x + ((point.x - min_x) * scale if span_x > 0 else usable_w / 2)
-        y_up = offset_y + ((point.y - min_y) * scale if span_y > 0 else usable_h / 2)
-        y = top + height - y_up
+        inner_y = inner_offset_y + (
+            (point.y - min_y) * scale if span_y > 0 else usable_h / 2
+        )
+        y = top + height - inner_y
         projected.append((x, y))
     return projected
 
@@ -132,7 +142,9 @@ def _project_points(
 def _draw_polygon_on_pdf(pdf: FPDF, points: list[CoordinatePoint]) -> None:
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "Croqui do poligono (vertices e segmentos)", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(
+        0, 8, "Croqui do poligono (vertices e segmentos)", new_x="LMARGIN", new_y="NEXT"
+    )
     pdf.set_font("Helvetica", size=9)
     pdf.multi_cell(
         0,
@@ -153,7 +165,10 @@ def _draw_polygon_on_pdf(pdf: FPDF, points: list[CoordinatePoint]) -> None:
         x2, y2 = projected[index + 1]
         pdf.line(x1, y1, x2, y2)
 
-        segment_length = math.dist((points[index].x, points[index].y), (points[index + 1].x, points[index + 1].y))
+        segment_length = math.dist(
+            (points[index].x, points[index].y),
+            (points[index + 1].x, points[index + 1].y),
+        )
         label_x = (x1 + x2) / 2
         label_y = (y1 + y2) / 2
         pdf.set_xy(label_x - 10, label_y - 2)
@@ -168,14 +183,22 @@ def _draw_polygon_on_pdf(pdf: FPDF, points: list[CoordinatePoint]) -> None:
 
     pdf.set_xy(left, top + height + 4)
     pdf.set_font("Helvetica", size=8)
-    pdf.multi_cell(0, 4, f"Total de vertices: {len(points) - 1} | Total de segmentos: {len(points) - 1}")
+    pdf.multi_cell(
+        0,
+        4,
+        f"Total de vertices: {len(points) - 1} | Total de segmentos: {len(points) - 1}",
+    )
 
 
-def _build_ascii_sketch(points: list[CoordinatePoint], width: int = 64, height: int = 20) -> str:
+def _build_ascii_sketch(
+    points: list[CoordinatePoint], width: int = 64, height: int = 20
+) -> str:
     if width < 8 or height < 8:
         raise ValueError("Dimensoes minimas do croqui ASCII: 8x8.")
 
-    projected = _project_points(points, 0.0, 0.0, float(width - 1), float(height - 1), padding=1.0)
+    projected = _project_points(
+        points, 0.0, 0.0, float(width - 1), float(height - 1), padding=1.0
+    )
     grid_points = [(int(round(x)), int(round(y))) for x, y in projected]
     canvas = [[" " for _ in range(width)] for _ in range(height)]
 

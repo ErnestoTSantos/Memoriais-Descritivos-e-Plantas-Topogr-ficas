@@ -13,21 +13,32 @@ import shapefile
 from app.models.schemas import CoordinatePoint, IrradiationObservation
 from app.services.angles import parse_azimuth
 
-
 POSSIBLE_X_COLUMNS = {"x", "e", "este", "east", "coord_x", "utm_x", "longitude"}
 POSSIBLE_Y_COLUMNS = {"y", "n", "norte", "north", "coord_y", "utm_y", "latitude"}
 POSSIBLE_VERTEX_COLUMNS = {"vertex", "vertice", "id", "ponto", "codigo", "name"}
 POSSIBLE_AZIMUTH_COLUMNS = {"azimute", "azimuth", "azimuth_deg", "angulo", "bearing"}
 POSSIBLE_DISTANCE_COLUMNS = {"distancia", "distance", "distance_m", "comprimento"}
-POSSIBLE_STATION_X_COLUMNS = {"estacao_x", "station_x", "origem_x", "origin_x", "setup_x"}
-POSSIBLE_STATION_Y_COLUMNS = {"estacao_y", "station_y", "origem_y", "origin_y", "setup_y"}
+POSSIBLE_STATION_X_COLUMNS = {
+    "estacao_x",
+    "station_x",
+    "origem_x",
+    "origin_x",
+    "setup_x",
+}
+POSSIBLE_STATION_Y_COLUMNS = {
+    "estacao_y",
+    "station_y",
+    "origem_y",
+    "origin_y",
+    "setup_y",
+}
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+# 512 KB covers roughly 10,000 pasted vertices with room for delimiters.
+MAX_TEXT_BYTES = 512 * 1024
 ALLOWED_ZIP_SUFFIXES = {".shp", ".shx", ".dbf", ".prj", ".cpg"}
+# shapeType codes: 5=Polygon, 15=PolygonZ, 25=PolygonM
+ACCEPTED_SHAPE_TYPES = {5, 15, 25}
 
-
-# =========================
-# 🔹 HELPERS
-# =========================
 
 def _to_float(value: str | None, field_name: str, line: str) -> float:
     if value is None:
@@ -41,7 +52,9 @@ def _to_float(value: str | None, field_name: str, line: str) -> float:
     try:
         return float(cleaned)
     except ValueError:
-        raise ValueError(f"Valor inválido para '{field_name}': '{value}' na linha: '{line}'")
+        raise ValueError(
+            f"Valor inválido para '{field_name}': '{value}' na linha: '{line}'"
+        )
 
 
 def _normalize_header(value: str) -> str:
@@ -56,9 +69,17 @@ def _safe_get(row: dict, key: str | None) -> str:
 
 def _decode_text(raw: str | bytes) -> str:
     if isinstance(raw, str):
+        if len(raw.encode("utf-8")) > MAX_TEXT_BYTES:
+            raise ValueError(
+                f"Texto muito grande ({len(raw)} chars). "
+                f"Limite: {MAX_TEXT_BYTES // 1024} KB."
+            )
         return raw
     if len(raw) > MAX_UPLOAD_BYTES:
-        raise ValueError("Arquivo muito grande para processamento.")
+        raise ValueError(
+            f"Arquivo muito grande ({len(raw) // 1024} KB). "
+            f"Limite: {MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
+        )
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -80,10 +101,6 @@ def _validate_zip_member(member: zipfile.ZipInfo) -> None:
         raise ValueError("ZIP invalido: contem arquivo nao permitido para shapefile.")
 
 
-# =========================
-# 🔹 BASE STRATEGIES
-# =========================
-
 class CoordinateParsingStrategy(ABC):
     @abstractmethod
     def parse(self, raw: str | bytes) -> list[CoordinatePoint]:
@@ -95,10 +112,6 @@ class IrradiationParsingStrategy(ABC):
     def parse(self, raw: str | bytes) -> list[IrradiationObservation]:
         raise NotImplementedError
 
-
-# =========================
-# 🔹 TEXT COORDINATES
-# =========================
 
 class TextCoordinatesParsingStrategy(CoordinateParsingStrategy):
     def parse(self, raw: str | bytes) -> list[CoordinatePoint]:
@@ -135,10 +148,6 @@ class TextCoordinatesParsingStrategy(CoordinateParsingStrategy):
         return points
 
 
-# =========================
-# 🔹 CSV COORDINATES
-# =========================
-
 class CsvTxtParsingStrategy(CoordinateParsingStrategy):
     def __init__(self, fallback_strategy: CoordinateParsingStrategy | None = None):
         self._fallback = fallback_strategy or TextCoordinatesParsingStrategy()
@@ -161,12 +170,16 @@ class CsvTxtParsingStrategy(CoordinateParsingStrategy):
 
         x_key = next((headers[h] for h in headers if h in POSSIBLE_X_COLUMNS), None)
         y_key = next((headers[h] for h in headers if h in POSSIBLE_Y_COLUMNS), None)
-        v_key = next((headers[h] for h in headers if h in POSSIBLE_VERTEX_COLUMNS), None)
+        v_key = next(
+            (headers[h] for h in headers if h in POSSIBLE_VERTEX_COLUMNS), None
+        )
 
         if not x_key or not y_key:
             return self._fallback.parse(text)
 
         points: list[CoordinatePoint] = []
+
+        invalid_lines: list[str] = []
 
         for idx, row in enumerate(reader, start=1):
             line = str(row)
@@ -175,6 +188,9 @@ class CsvTxtParsingStrategy(CoordinateParsingStrategy):
             y_raw = _safe_get(row, y_key)
 
             if not x_raw or not y_raw:
+                invalid_lines.append(
+                    f"  Linha {idx}: campo(s) X ou Y ausente(s) — {line}"
+                )
                 continue
 
             vertex = _safe_get(row, v_key) or f"V-{idx:03d}"
@@ -187,15 +203,17 @@ class CsvTxtParsingStrategy(CoordinateParsingStrategy):
                 )
             )
 
+        if invalid_lines:
+            raise ValueError(
+                f"{len(invalid_lines)} linha(s) invalida(s) no CSV:\n"
+                + "\n".join(invalid_lines)
+            )
+
         if not points:
             raise ValueError("Nenhuma coordenada válida encontrada no arquivo.")
 
         return points
 
-
-# =========================
-# 🔹 TEXT IRRADIATION
-# =========================
 
 class TextIrradiationParsingStrategy(IrradiationParsingStrategy):
     def parse(self, raw: str | bytes) -> list[IrradiationObservation]:
@@ -211,11 +229,6 @@ class TextIrradiationParsingStrategy(IrradiationParsingStrategy):
             if len(chunks) < 2:
                 raise ValueError(f"Linha inválida na irradiação: '{line}'")
 
-            # formatos suportados
-            # V, AZ, DIST
-            # V, SX, SY, AZ, DIST
-            # V, ESTACAO, AZ, DIST
-
             if len(chunks) == 2:
                 vertex = f"V-{idx:03d}"
                 az, dist = chunks
@@ -226,7 +239,6 @@ class TextIrradiationParsingStrategy(IrradiationParsingStrategy):
                 sx = sy = None
 
             elif len(chunks) == 4:
-                # estação simbólica (ignora aqui, tratado depois se quiser)
                 vertex, _, az, dist = chunks
                 sx = sy = None
 
@@ -251,10 +263,6 @@ class TextIrradiationParsingStrategy(IrradiationParsingStrategy):
         return observations
 
 
-# =========================
-# 🔹 CSV IRRADIATION
-# =========================
-
 class CsvTxtIrradiationParsingStrategy(IrradiationParsingStrategy):
     def __init__(self, fallback_strategy: IrradiationParsingStrategy | None = None):
         self._fallback = fallback_strategy or TextIrradiationParsingStrategy()
@@ -274,11 +282,21 @@ class CsvTxtIrradiationParsingStrategy(IrradiationParsingStrategy):
 
         headers = {_normalize_header(h): h for h in reader.fieldnames if h}
 
-        az_key = next((headers[h] for h in headers if h in POSSIBLE_AZIMUTH_COLUMNS), None)
-        dist_key = next((headers[h] for h in headers if h in POSSIBLE_DISTANCE_COLUMNS), None)
-        sx_key = next((headers[h] for h in headers if h in POSSIBLE_STATION_X_COLUMNS), None)
-        sy_key = next((headers[h] for h in headers if h in POSSIBLE_STATION_Y_COLUMNS), None)
-        v_key = next((headers[h] for h in headers if h in POSSIBLE_VERTEX_COLUMNS), None)
+        az_key = next(
+            (headers[h] for h in headers if h in POSSIBLE_AZIMUTH_COLUMNS), None
+        )
+        dist_key = next(
+            (headers[h] for h in headers if h in POSSIBLE_DISTANCE_COLUMNS), None
+        )
+        sx_key = next(
+            (headers[h] for h in headers if h in POSSIBLE_STATION_X_COLUMNS), None
+        )
+        sy_key = next(
+            (headers[h] for h in headers if h in POSSIBLE_STATION_Y_COLUMNS), None
+        )
+        v_key = next(
+            (headers[h] for h in headers if h in POSSIBLE_VERTEX_COLUMNS), None
+        )
 
         if not az_key or not dist_key:
             return self._fallback.parse(text)
@@ -315,10 +333,6 @@ class CsvTxtIrradiationParsingStrategy(IrradiationParsingStrategy):
         return observations
 
 
-# =========================
-# 🔹 SHAPEFILE
-# =========================
-
 class ShapefileZipParsingStrategy(CoordinateParsingStrategy):
     def parse(self, raw: str | bytes) -> list[CoordinatePoint]:
         if isinstance(raw, str):
@@ -348,28 +362,49 @@ class ShapefileZipParsingStrategy(CoordinateParsingStrategy):
                 raise ValueError("ZIP não contém .shp")
 
             try:
-                reader = shapefile.Reader(os.path.join(temp_dir, shp_files[0]))
-                shapes = reader.shapes()
+                sf_reader = shapefile.Reader(os.path.join(temp_dir, shp_files[0]))
+                shapes = sf_reader.shapes()
             except Exception as exc:
                 raise ValueError("Shapefile corrompido ou geometria ilegivel.") from exc
 
             if not shapes:
                 raise ValueError("Shapefile vazio.")
 
+            shape_type = sf_reader.shapeType
+            if shape_type not in ACCEPTED_SHAPE_TYPES:
+                raise ValueError(
+                    f"Tipo de geometria nao suportado: shapeType={shape_type}. "
+                    "Envie apenas shapefiles do tipo Polygon (5), PolygonZ (15) "
+                    "ou PolygonM (25)."
+                )
+
             pts = shapes[0].points
 
             if len(pts) < 3:
-                raise ValueError("Geometria inválida.")
+                raise ValueError("Geometria inválida: menos de 3 pontos.")
+
+            # Shapefiles include an explicit closing point; downstream validation
+            # expects distinct polygon vertices.
+            if len(pts) >= 2:
+                first_pt = pts[0]
+                last_pt = pts[-1]
+                if (
+                    abs(float(first_pt[0]) - float(last_pt[0])) <= 1e-9
+                    and abs(float(first_pt[1]) - float(last_pt[1])) <= 1e-9
+                ):
+                    pts = pts[:-1]
+
+            if len(pts) < 3:
+                raise ValueError(
+                    "Geometria inválida: menos de 3 vértices distintos após remover "
+                    "o ponto de fechamento."
+                )
 
             return [
                 CoordinatePoint(vertex=f"V-{i:03d}", x=float(x), y=float(y))
                 for i, (x, y) in enumerate(pts, start=1)
             ]
 
-
-# =========================
-# 🔹 FACTORY
-# =========================
 
 class ParsingStrategyFactory:
     def __init__(self):

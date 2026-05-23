@@ -33,14 +33,24 @@ class FileExportStrategy(ABC):
 class PdfExportStrategy(FileExportStrategy):
     def export(self, payload: ExportPayload) -> ExportResult:
         path = payload.output_dir / f"memorial_{payload.slug}_{payload.token}.pdf"
-        export_pdf(path, f"Memorial Descritivo - {payload.property_name}", payload.memorial_text, payload.points)
+        export_pdf(
+            path,
+            f"Memorial Descritivo - {payload.property_name}",
+            payload.memorial_text,
+            payload.points,
+        )
         return ExportResult(path=path, media_type="application/pdf")
 
 
 class DocxExportStrategy(FileExportStrategy):
     def export(self, payload: ExportPayload) -> ExportResult:
         path = payload.output_dir / f"memorial_{payload.slug}_{payload.token}.docx"
-        export_docx(path, f"Memorial Descritivo - {payload.property_name}", payload.memorial_text, payload.points)
+        export_docx(
+            path,
+            f"Memorial Descritivo - {payload.property_name}",
+            payload.memorial_text,
+            payload.points,
+        )
         return ExportResult(
             path=path,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -55,14 +65,20 @@ class DxfExportStrategy(FileExportStrategy):
 
 
 class DwgExportStrategy(FileExportStrategy):
-    def __init__(self, dxf_strategy: FileExportStrategy | None = None) -> None:
-        self._dxf_strategy = dxf_strategy or DxfExportStrategy()
+    """DWG is a proprietary Autodesk binary format that cannot be produced by
+    simply renaming a DXF file.  Doing so yields a corrupted, unreadable file.
+
+    This strategy intentionally raises an explicit error instead of silently
+    returning an invalid file.  Callers should use DxfExportStrategy for
+    CAD-compatible output or integrate a real ODA/LibreCAD converter here.
+    """
 
     def export(self, payload: ExportPayload) -> ExportResult:
-        dxf_result = self._dxf_strategy.export(payload)
-        dwg_path = payload.output_dir / f"planta_{payload.slug}_{payload.token}.dwg"
-        dwg_path.write_bytes(dxf_result.path.read_bytes())
-        return ExportResult(path=dwg_path, media_type="application/acad")
+        raise NotImplementedError(
+            "Exportacao DWG nao esta disponivel. "
+            "Use o formato DXF para compatibilidade com software CAD. "
+            "Para DWG real e necessario um conversor externo (ex: ODA File Converter)."
+        )
 
 
 class ExportStrategyFactory:
@@ -70,7 +86,7 @@ class ExportStrategyFactory:
         self._pdf_strategy = PdfExportStrategy()
         self._docx_strategy = DocxExportStrategy()
         self._dxf_strategy = DxfExportStrategy()
-        self._dwg_strategy = DwgExportStrategy(dxf_strategy=self._dxf_strategy)
+        # DWG requests are routed to a clear ValueError by for_output_format().
 
     def for_output_format(self, output_format: str) -> FileExportStrategy:
         fmt = output_format.lower()
@@ -81,5 +97,8 @@ class ExportStrategyFactory:
         if fmt == "dxf":
             return self._dxf_strategy
         if fmt == "dwg":
-            return self._dwg_strategy
-        raise ValueError("Formato invalido. Use: pdf, docx, dxf ou dwg.")
+            raise ValueError(
+                "Exportacao DWG nao esta disponivel. "
+                "Use o formato DXF — ambos sao compatíveis com AutoCAD e LibreCAD."
+            )
+        raise ValueError("Formato invalido. Use: pdf, docx ou dxf.")
