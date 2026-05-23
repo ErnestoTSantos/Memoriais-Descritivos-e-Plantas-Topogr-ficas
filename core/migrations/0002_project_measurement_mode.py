@@ -11,7 +11,10 @@ class Migration(migrations.Migration):
             model_name="project",
             name="measurement_mode",
             field=models.CharField(
-                choices=[("ponto_a_ponto", "Ponto a ponto"), ("irradiacao", "Irradiacao")],
+                choices=[
+                    ("ponto_a_ponto", "Ponto a ponto"),
+                    ("irradiacao", "Irradiacao"),
+                ],
                 default="ponto_a_ponto",
                 max_length=20,
             ),
